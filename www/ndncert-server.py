@@ -338,9 +338,8 @@ def get_operator_for_email(email):
 
         # Special handling for guests
         ndn_domain = ndn.Name("/ndn/guest")
-        assigned_namespace = \
-            ndn.Name('/ndn/guest') \
-            .append(email)
+        assigned_namespace = ndn.Name('/ndn/guest')
+        assigned_namespace.append(str(email))
     else:
         if domain == "operators.named-data.net":
             ndn_domain = ndn.Name(str(user))
