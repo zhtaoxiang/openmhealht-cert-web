@@ -46,6 +46,12 @@ app.config.from_pyfile('%s/settings.py' % os.path.dirname(os.path.abspath(__file
 mongo = PyMongo(app)
 mail = Mail(app)
 
+app.mongo = mongo
+app.mail = mail
+
+from admin import admin
+app.register_blueprint(admin)
+
 #############################################################################################
 # User-facing components
 #############################################################################################
@@ -66,7 +72,7 @@ def request_token():
         user_email = request.form['email']
         try:
             # pre-validation
-            get_operator_for_email(user_email)
+            params = get_operator_for_email(user_email)
         except:
             return render_template('error-unknown-site.html')
 
@@ -77,14 +83,16 @@ def request_token():
             }
         mongo.db.tokens.insert(token)
 
-        msg = Message("[NDN Certification] Request confirmation",
-                      sender = app.config['MAIL_FROM'],
-                      recipients = [user_email],
-                      body = render_template('token-email.txt', URL=app.config['URL'], **token),
-                      html = render_template('token-email.html', URL=app.config['URL'], **token))
-        mail.send(msg)
-
-        return render_template('token-sent.html', email=user_email)
+        if params['domain'] == 'operators.named-data.net':
+            return render_template('token-email.html', URL=app.config['URL'], **token)
+        else:
+            msg = Message("[NDN Certification] Request confirmation",
+                          sender = app.config['MAIL_FROM'],
+                          recipients = [user_email],
+                          body = render_template('token-email.txt', URL=app.config['URL'], **token),
+                          html = render_template('token-email.html', URL=app.config['URL'], **token))
+            mail.send(msg)
+            return render_template('token-sent.html', email=user_email)
 
 @app.route('/cert-requests/submit/', methods = ['GET', 'POST'])
 def submit_request():

@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+
+{% block instructions %}
+<h2>
+List of registered operators:
+</h2>
+{% endblock %}
+
+{% block body %}
+
+<form method="POST">
+
+{% macro with_errors(field) %}
+    <div class="form_field">
+    {% if field.errors %}
+        {% set css_class = 'error' %}
+        {{ field.label }} {{ field(class=css_class, **kwargs) }}
+        {# <ul class="errors">{% for error in field.errors %}<li>{{ error|e }}</li>{% endfor %}</ul> #}
+    {% else %}
+        {{ field.label }} {{ field }}
+    {% endif %}
+    </div>
+{% endmacro %}
+
+{% for field in form %}
+  {{ with_errors(field) }}
+{% endfor %}
+
+<input type="submit" value="Submit"></input>
+
+</form>
+
+{% endblock %}
+
+</html>

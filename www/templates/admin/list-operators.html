@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+
+{% block instructions %}
+<h2>
+List of registered operators:
+</h2>
+{% endblock %}
+
+{% block body %}
+
+<table class="item-list">
+  <thead>
+    <tr>
+      <th>Namespace</th>
+      <th>Site</th>
+      <th>Operator name</th>
+      <th>Site emails</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  {% for operator in operators %}
+    <tr class="{% if loop.index % 2 %}odd{% else %}even{% endif %}">
+      <td>{{ operator.site_prefix }}</td>
+      <td>{{ operator.site_name }}</td>
+      <td>{{ operator.name }}</td>
+      <td>
+        {% for domain in operator.site_emails %}{% if loop.index > 1 %}, {% endif %}{{ domain}}{% endfor %}
+      </td>
+      <td>
+        <a href="{{ url_for("admin.edit_operator", id=operator._id) }}">Edit</a>
+        &nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{{ url_for("admin.delete_operator", id=operator._id) }}">Delete</a>
+      </td>
+    </tr>
+  {% endfor %}
+</table>
+
+<a href="{{ url_for('admin.add_operator') }}">Add new</a>
+
+{% endblock %}
+
+</html>
