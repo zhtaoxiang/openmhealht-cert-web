@@ -161,9 +161,7 @@ class Signer(object):
         return cert.rstrip()
 
     def denyCertificate(self, request):
-        cmdline = ['ndnsec-certgen',
-                   '--nack',
-                   '--sign-id', str(self.site_prefix),
+        cmdline = ['ndnsec-cert-revoke',
                    '--request', '-'
                    ]
 
