@@ -41,16 +41,16 @@ def list_operators():
 
 
 
-from wtforms import Form, BooleanField, StringField, SubmitField, HiddenField, TextAreaField, validators
+from wtforms import Form, BooleanField, TextField, SubmitField, HiddenField, TextAreaField, validators
 from wtforms.validators import *
 
 class RegistrationForm(Form):
     _id         = HiddenField()
-    site_prefix = StringField('Site Prefix', [DataRequired()])
-    site_name   = StringField('Site Name', [DataRequired()])
-    site_emails = StringField('Site Emails', [DataRequired()])
-    name        = StringField('Operator Name', [DataRequired()])
-    email       = StringField('Operator Email', [DataRequired()])
+    site_prefix = TextField('Site Prefix', [Required()])
+    site_name   = TextField('Site Name', [Required()])
+    site_emails = TextField('Site Emails', [Required()])
+    name        = TextField('Operator Name', [Required()])
+    email       = TextField('Operator Email', [Required()])
     key         = TextAreaField('Operator public key or public key certificate')
 
 @admin.route('/admin/add-operator', methods = ['GET', 'POST'])
