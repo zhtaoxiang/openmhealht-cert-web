@@ -16,7 +16,7 @@
 <p>To generate NDN certification request, please follow the instructions below:
 
 <ul>
-  <li>Ensure that you have installed NDNx</li>
+  <li>Ensure that you have installed NFD.  If you do not have NFD installed yet, you can follow <a href="http://named-data.net/doc/NFD/current/INSTALL.html" target="_blank">these simple installation instructions</a>.</li>
   <li>Open terminal and issue the following command:<br/>
 
   <div>
@@ -34,10 +34,10 @@ ndnsec-keygen {{ assigned_namespace }}</pre>
 
 {% block body %}
 <p/>
-<form name="input" id="input" action="{{ URL }}/cert-requests/submit/" method="post"> 
+<form name="input" id="input" action="{{ URL }}/cert-requests/submit/" method="post">
 
 <br/>
-Full Name: 
+Full Name:
 <input type="text" name="fullname" size="20"></input>
 <br/>
 Homepage URL:
