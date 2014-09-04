@@ -94,6 +94,10 @@ def request_token():
             mail.send(msg)
             return render_template('token-sent.html', email=user_email)
 
+@app.route('/help', methods = ['GET'])
+def show_help():
+    return render_template('how-it-works.html')
+
 @app.route('/cert-requests/submit/', methods = ['GET', 'POST'])
 def submit_request():
     if request.method == 'GET':
