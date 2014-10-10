@@ -151,6 +151,7 @@ class Signer(object):
                             '2.5.4.80',             sanitize(request['advisor'])
                             ),
                    '--sign-id', str(self.site_prefix),
+                   '--cert-prefix', str(self.site_prefix),
                    '--request', '-'
                    ]
 
