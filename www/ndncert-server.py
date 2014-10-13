@@ -50,7 +50,9 @@ app.mongo = mongo
 app.mail = mail
 
 from admin import admin
+from cert import cert
 app.register_blueprint(admin)
+app.register_blueprint(cert)
 
 #############################################################################################
 # User-facing components
@@ -199,28 +201,6 @@ def submit_request():
 
         return render_template('request-thankyou.html')
 
-@app.route('/cert/get/', methods = ['GET'])
-def get_certificate():
-    name = request.args.get('name')
-    ndn_name = ndn.Name(str(name))
-
-    cert = mongo.db.certs.find_one({'name': str(name)})
-    if cert == None:
-        abort(404)
-
-    response = make_response(cert['cert'])
-    response.headers['Content-Type'] = 'application/octet-stream'
-    response.headers['Content-Disposition'] = 'attachment; filename=%s.ndncert' % str(ndn_name[-3])
-    return response
-
-@app.route('/cert/list/', methods = ['GET'])
-def get_certificates():
-    certificates = mongo.db.certs.find().sort([('name', 1)])
-    return make_response(render_template('cert-list.txt', certificates=certificates), 200, {
-            'Content-Type': 'text/plain'
-            })
-
-
 #############################################################################################
 # Operator-facing components
 #############################################################################################
@@ -293,13 +273,14 @@ def submit_certificate():
                                              URL=app.config['URL'], **cert_request))
         mail.send(msg)
 
-        mongo.db.requests.remove(cert_request)
+        # mongo.db.requests.remove(cert_request)
 
         return "OK. Certificate has been denied"
     else:
         cert = {
             'name': data.getName().toUri(),
             'cert': request.form['data'],
+            'operator': operator,
             'created_on': datetime.datetime.utcnow(), # to periodically remove unverified tokens
             }
         mongo.db.certs.insert(cert)
@@ -321,7 +302,7 @@ def submit_certificate():
                                              **cert_request))
         mail.send(msg)
 
-        mongo.db.requests.remove(cert_request)
+        # mongo.db.requests.remove(cert_request)
 
         return "OK. Certificate has been approved and notification sent to the requester"
 

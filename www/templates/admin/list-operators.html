@@ -2,7 +2,7 @@
 
 {% block instructions %}
 <h2>
-List of registered operators:
+{{ title }}
 </h2>
 {% endblock %}
 
@@ -24,7 +24,7 @@ List of registered operators:
       <td>{{ operator.site_name }}</td>
       <td>{{ operator.name }}</td>
       <td>
-        {% for domain in operator.site_emails %}{% if loop.index > 1 %}, {% endif %}{{ domain}}{% endfor %}
+        {% for domain in operator.site_emails %}{% if loop.index > 1 %}, {% endif %}{{ domain }}{% endfor %}
       </td>
       <td>
         <a href="{{ url_for("admin.edit_operator", id=operator._id) }}">Edit</a>

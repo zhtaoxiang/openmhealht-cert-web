@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+
+{% block instructions %}
+<h2>
+{{ title }}
+</h2>
+{% endblock %}
+
+{% block body %}
+
+<table class="item-list">
+  {% set site_name = "" %}
+
+  {% for cert in certs %}
+    {% if cert.operator %}
+    {% set current_site = cert.operator.site_name %}
+    {% else %}
+    {% set current_site = "Unknown" %}
+    {% endif %}
+
+    {% if site_name != current_site  %}
+    {% set site_name = current_site %}
+    <thead>
+    <tr>
+      <th colspan="3">{{ site_name }}</td>
+    </tr>
+    </thead>
+    {% endif %}
+
+    <tr class="{% if loop.index % 2 %}odd{% else %}even{% endif %}">
+      <td>{{ cert.name }}</td>
+      <td><a href="{{ url_for("cert.get_certificate", name=cert.name, view=1) }}">View</a></td>
+      <td><a href="{{ url_for("cert.get_certificate", name=cert.name) }}">Download</a></td>
+    </tr>
+  {% endfor %}
+</table>
+
+{% endblock %}
+
+</html>
