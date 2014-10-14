@@ -31,6 +31,10 @@
       <td>{{ cert.name }}</td>
       <td>
         <a href="{{ url_for("cert.delete_cert", id=cert._id) }}">Delete</a>
+        &nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{{ url_for("cert.get_certificate", name=cert.name, view=1) }}">View</a>
+        &nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="{{ url_for("cert.get_certificate", name=cert.name) }}">Download</a>
       </td>
     </tr>
   {% endfor %}

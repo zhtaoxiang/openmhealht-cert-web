@@ -60,4 +60,4 @@ def list_certs_admin():
 @auth.requires_auth
 def delete_cert(id):
     current_app.mongo.db.certs.remove({'_id': ObjectId(id)})
-    return redirect(url_for('cert.list_certs'))
+    return redirect(url_for('cert.list_certs_admin'))
