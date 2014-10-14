@@ -44,7 +44,7 @@ def get_certificates():
 @cert.route('/cert/list/html', methods = ['GET'])
 def list_certs_html():
     certs = current_app.mongo.db.certs.find({ '$query': {},
-                                         '$orderby': { 'operator.site_name': 1, 'created_on' : 1 }})
+                                         '$orderby': { 'name' : 1, 'operator.site_prefix': 1 }})
     return render_template('cert-list.html',
                            certs=certs, title="List of issued certificates")
 
@@ -52,7 +52,7 @@ def list_certs_html():
 @auth.requires_auth
 def list_certs_admin():
     certs = current_app.mongo.db.certs.find({ '$query': {},
-                                         '$orderby': { 'operator.site_name': 1, 'created_on' : 1 }})
+                                         '$orderby': { 'name' : 1, 'operator.site_prefix': 1 }})
     return render_template('admin/cert-list.html',
                            certs=certs, title="List of issued certificates")
 
