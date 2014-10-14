@@ -273,7 +273,7 @@ def submit_certificate():
                                              URL=app.config['URL'], **cert_request))
         mail.send(msg)
 
-        # mongo.db.requests.remove(cert_request)
+        mongo.db.requests.remove(cert_request)
 
         return "OK. Certificate has been denied"
     else:
@@ -302,7 +302,7 @@ def submit_certificate():
                                              **cert_request))
         mail.send(msg)
 
-        # mongo.db.requests.remove(cert_request)
+        mongo.db.requests.remove(cert_request)
 
         return "OK. Certificate has been approved and notification sent to the requester"
 
