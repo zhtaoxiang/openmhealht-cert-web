@@ -37,22 +37,22 @@ ndnsec-keygen {{ assigned_namespace }}</pre>
 <form name="input" id="input" action="{{ URL }}/cert-requests/submit/" method="post">
 
 <br/>
-Full Name:
+<b>Full Name:</b>
 <input type="text" name="fullname" size="20"></input>
 <br/>
-Homepage URL:
+Homepage URL (optional):
 <input type="text" name="homeurl" size="20"></input>
 <br/>
 Organization:
 <div class="box"><b>{{ operator.site_name }}</b></div>
 <br/>
-Institutional Group Name (optional):
+Department/Group (optional):
 <input type="text" name="group" class="group" size="20"></input>
 <br/>
-Advisor Name: (optional)
+Advisor Name (optional):
 <input type="text" name="advisor" size="20"></input>
 <br/>
-NDN certification request
+<b>NDN certification request:</b>
 <textarea class="cert-request" name="cert-request"></textarea>
 
 <input type="hidden" name="email" value="{{ email }}"></input>

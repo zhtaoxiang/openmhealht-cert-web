@@ -148,6 +148,12 @@ def submit_request():
             abort(403)
             return
 
+        if user_fullname == "":
+            return render_template('request-form.html',
+                                   error="Full Name field cannot be empty",
+                                   URL=app.config['URL'], email=user_email,
+                                   token=user_token, **params)
+
         try:
             user_cert_request = base64.b64decode(request.form['cert-request'])
             user_cert_data = ndn.Data()
