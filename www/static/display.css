@@ -37,6 +37,12 @@ input {
     background-color: #fcf8e3;
 }
 
+.box {
+    background-color: #eeeeee;
+    padding: 10px 5px 10px 5px;
+    border: 1px solid #cccccc;
+}
+
 pre {
     margin-left: 20px;
     font-weight: bold;
