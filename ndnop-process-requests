@@ -45,6 +45,9 @@ REPO_PORT = 7376
 ################################################################################
 ################################################################################
 
+class RequestSkipped(Exception):
+    pass
+
 class Signer(object):
     def __init__(self, site_prefix):
         self.site_prefix = site_prefix
@@ -102,15 +105,18 @@ class Signer(object):
             print "    Group:        [%s]" % sanitize(req['group'])
             print "    Advisor:      [%s]" % sanitize(req['advisor'])
 
-            if confirm("Do you certify the above information?", resp=False):
-                cert = self.issueCertificate(req)
-                decision = "issue"
-                self.publishCertificate(cert)
-                issued += 1
-            else:
-                cert = base64.b64encode(self.denyCertificate(req))
-                decision = "reject"
-                rejected += 1
+            try:
+                if confirm("Do you certify the above information?", resp=False):
+                    cert = self.issueCertificate(req)
+                    decision = "issue"
+                    self.publishCertificate(cert)
+                    issued += 1
+                else:
+                    cert = base64.b64encode(self.denyCertificate(req))
+                    decision = "reject"
+                    rejected += 1
+            except RequestSkipped:
+                continue
 
             http_request = "%s/cert/submit/" % URL
             try:
@@ -130,7 +136,8 @@ class Signer(object):
         if count == 0:
             print "DONE: No pending certificate requests"
         else:
-            print "DONE: Processed %d requests, %d issued, %d rejected" % (count, issued, rejected)
+            print "DONE: Processed %d requests, %d issued, %d rejected, %d skipped" % \
+              (count, issued, rejected, count - issued - rejected)
 
     def issueCertificate(self, request):
         today = datetime.datetime.utcnow()
@@ -182,21 +189,23 @@ class Signer(object):
 
 def confirm(prompt, resp):
     if resp:
-        prompt = '%s [%s]|%s: ' % (prompt, 'y', 'n')
+        prompt = '%s [%s]|%s|%s: ' % (prompt, 'y', 'n', 's')
     else:
-        prompt = '%s [%s]|%s: ' % (prompt, 'n', 'y')
+        prompt = '%s [%s]|%s|%s: ' % (prompt, 'n', 'y', 's')
 
     while True:
         ans = raw_input(prompt)
         if not ans:
             return resp
-        if ans not in ['y', 'Y', 'n', 'N']:
-            print 'please enter y or n.'
+        if ans not in ['y', 'Y', 'n', 'N', 's', 'S']:
+            print 'please enter y, n, or s.'
             continue
         if ans == 'y' or ans == 'Y':
             return True
         if ans == 'n' or ans == 'N':
             return False
+        if ans == 's' or ans == 'S':
+            raise RequestSkipped
 
 def sanitize(value):
     # Allow only a very limited set of characters as a value
