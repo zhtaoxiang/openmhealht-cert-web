@@ -149,14 +149,13 @@ class Signer(object):
                    '--not-before', not_before,
                    '--not-after',  not_after,
                    '--subject-name', sanitize(request['fullname']),
-                   '--subject-info', ("%s '%s' " * 4 + "%s '%s'") %
-                           (
-                            '1.2.840.113549.1.9.1', sanitize(request['email']),
-                            '2.5.4.11',             sanitize(request['organization']),
-                            '2.5.4.1',              sanitize(request['group']),
-                            '2.5.4.3',              sanitize(request['homeurl']),
-                            '2.5.4.80',             sanitize(request['advisor'])
-                            ),
+
+                   '--signed-info', '%s %s' % ('1.2.840.113549.1.9.1', sanitize(request['email'])),
+                   '--signed-info', '%s %s' % ('2.5.4.11',             sanitize(request['organization'])),
+                   '--signed-info', '%s %s' % ('2.5.4.1',              sanitize(request['group'])),
+                   '--signed-info', '%s %s' % ('2.5.4.3',              sanitize(request['homeurl'])),
+                   '--signed-info', '%s %s' % ('2.5.4.80',             sanitize(request['advisor'])),
+
                    '--sign-id', str(self.site_prefix),
                    '--cert-prefix', str(self.site_prefix),
                    '--request', '-'
@@ -170,6 +169,8 @@ class Signer(object):
 
     def denyCertificate(self, request):
         cmdline = ['ndnsec-cert-revoke',
+                   '--sign-id', str(self.site_prefix),
+                   '--cert-prefix', str(self.site_prefix),
                    '--request', '-'
                    ]
 
