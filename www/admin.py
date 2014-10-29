@@ -30,15 +30,14 @@ class Operator(dict):
     def __repr__(self):
         return type(self).__name__ + '(' + dict.__repr__(self) + ')'
 
-@admin.route('/admin', methods = ['GET'])
-@admin.route('/admin/', methods = ['GET'])
+@admin.route('/admin', methods = ['GET'], strict_slashes=False)
 @auth.requires_auth
 def list_operators():
     operators = current_app.mongo.db.operators.find({ '$query': {}, '$orderby': { 'site_prefix' : 1 } })
     return render_template('admin/list-operators.html',
                            operators=operators, title="List of registered operators")
 
-@admin.route('/admin/add-operator', methods = ['GET', 'POST'])
+@admin.route('/admin/add-operator', methods = ['GET', 'POST'], strict_slashes=False)
 @auth.requires_auth
 def add_operator():
     form = RegistrationForm(request.form)
@@ -51,7 +50,7 @@ def add_operator():
                            title="Add operator")
 
 
-@admin.route('/admin/edit-operator/<id>', methods = ['GET', 'POST'])
+@admin.route('/admin/edit-operator/<id>', methods = ['GET', 'POST'], strict_slashes=False)
 @auth.requires_auth
 def edit_operator(id):
     if request.method == 'POST':
@@ -73,7 +72,7 @@ def edit_operator(id):
     return render_template('admin/add-or-edit.html', form=form,
                            title="Edit operator")
 
-@admin.route('/admin/delete-operator/<id>', methods = ['GET', 'POST'])
+@admin.route('/admin/delete-operator/<id>', methods = ['GET', 'POST'], strict_slashes=False)
 @auth.requires_auth
 def delete_operator(id):
     current_app.mongo.db.operators.remove({'_id': ObjectId(id)})
