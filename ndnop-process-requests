@@ -112,7 +112,7 @@ class Signer(object):
                     self.publishCertificate(cert)
                     issued += 1
                 else:
-                    cert = base64.b64encode(self.denyCertificate(req))
+                    cert = self.denyCertificate(req)
                     decision = "reject"
                     rejected += 1
             except RequestSkipped:
