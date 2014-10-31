@@ -360,7 +360,7 @@ def extract_cert_name(name):
     last = -2
     if name[-1] == 'REVOKED':
 	last = -3
-    for component in name[:-3]:
+    for component in name[:last]:
         if str(component) != 'KEY':
             newname.append(component)
     return newname
