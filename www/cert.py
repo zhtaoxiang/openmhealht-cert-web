@@ -17,6 +17,8 @@ def get_certificate():
     name = request.args.get('name')
     isView = request.args.get('view')
 
+    print name
+
     ndn_name = ndn.Name(str(name))
 
     cert = current_app.mongo.db.certs.find_one({'name': str(name)})

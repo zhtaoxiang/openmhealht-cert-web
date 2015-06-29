@@ -1,9 +1,9 @@
 Greetings, {{ fullname }}!
 
 Your NDN certificate has been approved and is ready for download.  
-You can download and install it using the following command:
+You can download and install it either by using the following command or open the link with Android Identity Manager:
 
-ndnsec-install-cert "{{ URL }}/cert/get/?name={{ quoted_cert_name }}"
+ndnsec-install-cert “{{ URL }}/cert/get/?name={{ quoted_cert_name }}”
 
 
 To see what certificates has been installed on the system and which ones are default, you can use the following command:

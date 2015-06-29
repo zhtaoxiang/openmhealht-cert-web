@@ -29,6 +29,7 @@ import requests
 import subprocess
 import base64
 import pyndn as ndn
+import pyndn.security.certificate
 import time
 import datetime
 import re
@@ -38,9 +39,9 @@ import socket
 ###                                CONFIG                                    ###
 ################################################################################
 
-URL = "http://ndncert.named-data.net"
+URL = "http://localhost:5000"
 REPO_HOST = "localhost"
-REPO_PORT = 7376
+REPO_PORT = 5000
 
 ################################################################################
 ################################################################################
@@ -96,6 +97,13 @@ class Signer(object):
             count += 1
             certData = ndn.Data()
             certData.wireDecode(ndn.Blob(buffer(base64.b64decode(req['cert_request']))))
+            
+            #print req['cert_request']
+            
+            #certificate = pyndn.security.certificate.Certificate(certData)
+            #identityCertificate = pyndn.security.certificate.IdentityCertificate(certificate)
+            #print identityCertificate.getPublicKeyName()
+            #print identityCertificate.getName()
 
             print " >> Certificate request [%s] << " % certData.getName()[:-2].toUri()
             print "    Full Name:    [%s]" % sanitize(req['fullname'])

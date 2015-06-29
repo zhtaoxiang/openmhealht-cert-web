@@ -72,11 +72,16 @@ def request_token():
         ###        Token creation & emailing          ###
         #################################################
         user_email = request.form['email']
+        flag       = request.form['flag'] if 'flag' in request.form else ""
+        
         try:
             # pre-validation
             params = get_operator_for_email(user_email)
         except:
-            return render_template('error-unknown-site.html')
+            if flag == 'mobileApp':
+                return json.dumps({"status": 1})
+            else:
+                return render_template('error-unknown-site.html')
 
         token = {
             'email': user_email,
@@ -94,7 +99,10 @@ def request_token():
                           body = render_template('token-email.txt', URL=app.config['URL'], **token),
                           html = render_template('token-email.html', URL=app.config['URL'], **token))
             mail.send(msg)
-            return render_template('token-sent.html', email=user_email)
+            if flag == 'mobileApp':
+                return json.dumps({"status": 0})
+            else:
+                return render_template('token-sent.html', email=user_email)
 
 @app.route('/help', methods = ['GET'])
 def show_help():
@@ -106,6 +114,7 @@ def submit_request():
         # Email and token (to authorize the request==validate email)
         user_email = request.args.get('email')
         user_token = request.args.get('token')
+        flag = request.args.get('flag')
 
         token = mongo.db.tokens.find_one({'email':user_email, 'token':user_token})
         if (token == None):
@@ -119,13 +128,17 @@ def submit_request():
             abort(403)
 
         # don't delete token for now, just give user a form to input stuff
-        return render_template('request-form.html', URL=app.config['URL'],
-                               email=user_email, token=user_token, **params)
-
+        if flag == 'mobileApp':
+            return json.dumps({"organization": params['operator']['site_name']})
+        else:
+            return render_template('request-form.html', URL=app.config['URL'],
+                                   email=user_email, token=user_token, **params)
+                
     else: # 'POST'
         # Email and token (to authorize the request==validate email)
         user_email = request.form['email']
         user_token = request.form['token']
+        flag       = request.form['flag'] if 'flag' in request.form else ""
 
         token = mongo.db.tokens.find_one({'email':user_email, 'token':user_token})
         if (token == None):
@@ -134,8 +147,8 @@ def submit_request():
         # Now, do basic validation of correctness of user input, save request in the database
         # and notify the operator
         user_fullname = request.form['fullname']
-        user_homeurl   = request.form['homeurl']
         #optional parameters
+        user_homeurl = request.form['homeurl'] if 'homeurl'   in request.form else ""
         user_group   = request.form['group']   if 'group'   in request.form else ""
         user_advisor = request.form['advisor'] if 'advisor' in request.form else ""
 
@@ -144,34 +157,41 @@ def submit_request():
             # pre-validation
             params = get_operator_for_email(user_email)
         except:
-            return "403"
             abort(403)
-            return
 
         if user_fullname == "":
-            return render_template('request-form.html',
-                                   error="Full Name field cannot be empty",
-                                   URL=app.config['URL'], email=user_email,
-                                   token=user_token, **params)
+            if flag == 'mobileApp':
+                return json.dumps({"status": 1})
+            else:
+                return render_template('request-form.html',
+                                       error="Full Name field cannot be empty",
+                                       URL=app.config['URL'], email=user_email,
+                                       token=user_token, **params)
 
         try:
             user_cert_request = base64.b64decode(request.form['cert-request'])
             user_cert_data = ndn.Data()
             user_cert_data.wireDecode(ndn.Blob(buffer(user_cert_request)))
         except:
-            return render_template('request-form.html',
+            if flag == 'mobileApp':
+                return json.dumps({"status": 2})
+            else:
+                return render_template('request-form.html',
                                    error="Incorrectly generated NDN certificate request, "
                                          "please try again",
                                    URL=app.config['URL'], email=user_email,
                                    token=user_token, **params)
 
         # check if the user supplied correct name for the certificate request
-        if not params['assigned_namespace'].isPrefixOf(user_cert_data.getName()):
-            return render_template('request-form.html',
-                                   error="Incorrectly generated NDN certificate request, "
-                                         "please try again",
-                                   URL=app.config['URL'], email=user_email,
-                                   token=user_token, **params)
+        if not params['assigned_namespace'].match(user_cert_data.getName()):
+            if flag == 'mobileApp':
+                return json.dumps({"status": 2})
+            else:
+                return render_template('request-form.html',
+                                       error="Incorrectly generated NDN certificate request, "
+                                             "please try again",
+                                       URL=app.config['URL'], email=user_email,
+                                       token=user_token, **params)
 
         cert_name = extract_cert_name(user_cert_data.getName()).toUri()
         # remove any previous requests for the same certificate name
@@ -205,7 +225,10 @@ def submit_request():
                                              **cert_request))
         mail.send(msg)
 
-        return render_template('request-thankyou.html')
+        if flag == 'mobileApp':
+            return json.dumps({"status": 0})
+        else:
+            return render_template('request-thankyou.html')
 
 #############################################################################################
 # Operator-facing components
@@ -221,7 +244,7 @@ def get_candidates():
     keyLocator = ndn.Name()
     keyLocator.wireDecode(commandInterestName[-2].getValue())
     signature  = commandInterestName[-1]
-
+    
     operator = mongo.db.operators.find_one({'site_prefix': keyLocator.toUri()})
     if operator == None:
         abort(403)
@@ -252,9 +275,11 @@ def submit_certificate():
     # @todo verify timestamp
 
     cert_name = extract_cert_name(data.getName())
+    print cert_name.toUri()
     cert_request = mongo.db.requests.find_one({'cert_name': cert_name.toUri()})
 
     if cert_request == None:
+        print 2
         abort(403)
 
     # infer parameters from email
@@ -262,6 +287,7 @@ def submit_certificate():
         # pre-validation
         params = get_operator_for_email(cert_request['email'])
     except:
+        print 1
         abort(403)
         return
 
