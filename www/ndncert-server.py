@@ -241,6 +241,7 @@ def get_candidates():
         ndn.Blob(buffer(base64.b64decode(request.form['commandInterest']))))
 
     timestamp  = commandInterestName[-3]
+    
     keyLocator = ndn.Name()
     keyLocator.wireDecode(commandInterestName[-2].getValue())
     signature  = commandInterestName[-1]
@@ -249,7 +250,7 @@ def get_candidates():
     if operator == None:
         abort(403)
 
-    # @todo Command Interest verificateion
+    # @todo Command Interest verification
 
     requests = mongo.db.requests.find({'operator_id': str(operator['_id'])})
     output = []
@@ -275,7 +276,6 @@ def submit_certificate():
     # @todo verify timestamp
 
     cert_name = extract_cert_name(data.getName())
-    print cert_name.toUri()
     cert_request = mongo.db.requests.find_one({'cert_name': cert_name.toUri()})
 
     if cert_request == None:
@@ -351,10 +351,15 @@ def ndnify(dnsName):
         ndnName = ndnName.append(str(component))
     return ndnName
 
+# TODO: zhehao: replace this method with mHealth namespace claiming logic
 def get_operator_for_email(email):
     # very basic pre-validation
     user, domain = email.split('@', 2)
-    operator = mongo.db.operators.find_one({'site_emails': {'$in':[ domain ]}})
+    
+    # zhehao: for the local test, all requests go to the operator zhehao
+    #operator = mongo.db.operators.find_one({'site_emails': {'$in':[ domain ]}})
+    operator = mongo.db.operators.find_one({'site_prefix': '/zhehao'})
+    
     if (operator == None):
         operator = mongo.db.operators.find_one({'site_emails': {'$in':[ 'guest' ]}})
 
@@ -371,7 +376,8 @@ def get_operator_for_email(email):
             assigned_namespace = ndn.Name(str(user))
         else:
             ndn_domain = ndnify(domain)
-            assigned_namespace = ndn.Name('/ndn')
+            # zhehao: for local test site, the root cert name begins with /zhehao, we use it to replace /ndn temporarily
+            assigned_namespace = ndn.Name('/zhehao')
             assigned_namespace \
                 .append(ndn_domain) \
                 .append(str(user))

@@ -1,7 +1,7 @@
 ####################
 # General settings #
 ####################
-URL = "http://ndncert.named-data.net"
+URL = "http://localhost:5000"
 
 #################
 # SMTP settings #
@@ -10,8 +10,8 @@ MAIL_FROM = "NDN Testbed Certificate Robot <alanwake.tan@gmail.com>"
 MAIL_SERVER = "smtp.gmail.com"
 
 MAIL_PORT = 465
-MAIL_USERNAME = "alanwake.tan@gmail.com"
-MAIL_PASSWORD = "xbgcrbdzaslavvqs"
+MAIL_USERNAME = "testname.zhehao@gmail.com"
+MAIL_PASSWORD = "test@2015"
 MAIL_USE_SSL = True
 
 ADMIN_USERNAME = 'admin'

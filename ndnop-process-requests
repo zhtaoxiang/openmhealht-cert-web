@@ -58,7 +58,9 @@ class Signer(object):
         commandInterestName \
           .append(str(int(time.mktime(time.gmtime())))) \
           .append(self.site_prefix.wireEncode())
-
+        
+        # Zhehao: we do not verify operator's command interest signature for now.
+        '''
         p = subprocess.Popen(["ndnsec-operator-tool", "sign"],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         signature, cerr = p.communicate(commandInterestName.wireEncode().toBuffer())
@@ -66,8 +68,10 @@ class Signer(object):
             print "ERROR: cannot generate signature, please submit your certification " \
                   "request to NDN testbed root"
             return
+        '''
 
-        commandInterestName.append(buffer(signature))
+        #commandInterestName.append(buffer(signature))
+        commandInterestName.append(ndn.Name('dummy-signature'))
 
         http_request = "%s/cert-requests/get/" % URL
 
@@ -168,6 +172,8 @@ class Signer(object):
                    '--cert-prefix', str(self.site_prefix),
                    '--request', '-'
                    ]
+        print(request['cert_request'])
+        print(cmdline)
 
         p = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         cert, err = p.communicate(request['cert_request'])
