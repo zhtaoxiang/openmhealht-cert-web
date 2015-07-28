@@ -8,58 +8,119 @@
 {% endif %}
 {% endblock %}
 
-{% block instructions %}
-<p>Please fill information about you and submit NDN certfication request.</p>
-
-<p>Note that a limited number of characters are allowed to be included in NDN certificates, including lower and upper case latin letters, numbers, and punctuation symbols.</p>
-
-<p>To generate NDN certification request, please follow the instructions below:
-
-<ul>
-  <li>Ensure that you have installed NFD.  If you do not have NFD installed yet, you can follow <a href="http://named-data.net/doc/NFD/current/INSTALL.html" target="_blank">these simple installation instructions</a>.</li>
-  <li>Open terminal and issue the following command:<br/>
-
-  <div>
-  <pre>
-ndnsec-keygen {{ assigned_namespace }}</pre>
-  </div>
-  </li>
-
-  <li>
-  Copy the output of the command into the 'NDN certification request' field below
-  </li>
-</ul>
-
-{% endblock %}
-
 {% block body %}
-<p/>
-<form name="input" id="input" action="{{ URL }}/cert-requests/submit/" method="post">
+<div id="request-form-body">
 
-<br/>
-<b>Full Name:</b>
-<input type="text" name="fullname" size="20"></input>
-<br/>
-Homepage URL (optional):
-<input type="text" name="homeurl" size="20"></input>
-<br/>
-Organization:
-<div class="box"><b>{{ operator.site_name }}</b></div>
-<br/>
-Department/Group (optional):
-<input type="text" name="group" class="group" size="20"></input>
-<br/>
-Advisor Name (optional):
-<input type="text" name="advisor" size="20"></input>
-<br/>
-<b>NDN certification request:</b>
-<textarea class="cert-request" name="cert-request"></textarea>
+  <div class="instructions">
+    <p>Please fill information about you and submit NDN certfication request.</p>
 
-<input type="hidden" name="email" value="{{ email }}"></input>
-<input type="hidden" name="token" value="{{ token }}"></input>
-<input type="submit" value="Submit"></input>
-</form>
-<p/>
+    <p>Note that a limited number of characters are allowed to be included in NDN certificates, including lower and upper case latin letters, numbers, and punctuation symbols.</p>
+
+    <p>To generate NDN certification request, please follow the instructions below:
+
+    <ul>
+      <li>Ensure that you have installed NFD.  If you do not have NFD installed yet, you can follow <a href="http://named-data.net/doc/NFD/current/INSTALL.html" target="_blank">these simple installation instructions</a>.</li>
+      <li>Open terminal and issue the following command:<br/>
+
+      <div>
+      <pre>
+        ndnsec-keygen {{ assigned_namespace }}</pre>
+      </div>
+      </li>
+
+      <li>
+      Copy the output of the command into the 'NDN certification request' field below
+      </li>
+    </ul>
+  </div>
+  
+  <p/>
+
+  <form name="input" id="input">
+
+  <br/>
+  <b>Full name:</b>
+  <input type="text" id="full-name" name="full-name" size="20"></input>
+  <br/>
+  <!--
+  Homepage URL (optional):
+  <input type="text" name="homeurl" size="20"></input>
+  <br/>
+  Organization:
+  <div class="box"><b>{{ operator.site_name }}</b></div>
+  <br/>
+  Department/Group (optional):
+  <input type="text" name="group" class="group" size="20"></input>
+  <br/>
+  Advisor Name (optional):
+  <input type="text" name="advisor" size="20"></input>
+  <br/>
+  -->
+
+  <b>Email:</b>
+  <div class="box"><b>{{ email }}</b></div>
+  <br/>
+
+  <b>NDN certification request:</b>
+  <textarea class="cert-request" name="cert-request" id="cert-request"></textarea>
+
+  <input type="hidden" name="email" value="{{ email }}"></input>
+  <input type="hidden" name="token" value="{{ token }}"></input>
+  </form>
+  <input type="button" id="submit-btn" value="Submit"></input>
+  <p/>
+  
+  <div class="instructions" id="warning-div">
+  </div>
+</div>
+
+<script>
+document.getElementById('submit-btn').onclick = function () {
+  var form = document.getElementById('input');
+  var data = new FormData(form);
+  var req = new XMLHttpRequest();
+  
+  var fullName = document.getElementById('full-name').value;
+  var certRequest = document.getElementById('cert-request').value;
+  
+  var bodyElement = document.getElementById("request-form-body");
+  
+  if (fullName !== '' && certRequest !== '') {  
+    req.onreadystatechange = function () {
+      if (req.readyState == 4) {
+        try {
+          var response = JSON.parse(req.responseText);
+          if (response.status == 200) {
+            bodyElement.innerHTML = "<div class=\"instructions\"> \
+              Your request for NDN certificate has been received.  \
+              Your request will be processed and you should receive an email when your certificate is generated. \
+            </div>";
+          } else if (response.status == 400) {
+            bodyElement.innerHTML += "<div class=\"instructions\"> \
+              Error " + response.status.toString() + " : " + response.message + " \
+            </div>";
+          } else {
+            bodyElement.innerHTML = "Unknown error.";
+          }
+        } 
+        catch (e) {
+          console.log(e);
+          bodyElement.innerHTML = e;
+        }
+      }
+    }
+    
+    req.open('POST', "{{ url_for('submit_request') }}", true);
+    req.send(data);
+    
+    bodyElement.innerHTML = "<div class=\"instructions\"> \
+      Please wait... \
+    </div>";
+  } else {
+    document.getElementById("warning-div").innerHTML += "Please put valid full name and cert request";
+  }
+}
+</script>
 {% endblock %}
 
 </html>

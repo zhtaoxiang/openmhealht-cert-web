@@ -111,12 +111,8 @@ class Signer(object):
 
             print " >> Certificate request [%s] << " % certData.getName()[:-2].toUri()
             print "    Full Name:    [%s]" % sanitize(req['fullname'])
-            print "    Organization: [%s]" % sanitize(req['organization'])
             print "    Email:        [%s]" % sanitize(req['email'])
-            print "    Homepage:     [%s]" % sanitize(req['homeurl'])
-            print "    Group:        [%s]" % sanitize(req['group'])
-            print "    Advisor:      [%s]" % sanitize(req['advisor'])
-
+            
             try:
                 if confirm("Do you certify the above information?", resp=False):
                     cert = self.issueCertificate(req)
@@ -163,11 +159,7 @@ class Signer(object):
                    '--subject-name', sanitize(request['fullname']),
 
                    '--signed-info', '%s %s' % ('1.2.840.113549.1.9.1', sanitize(request['email'])),
-                   '--signed-info', '%s %s' % ('2.5.4.11',             sanitize(request['organization'])),
-                   '--signed-info', '%s %s' % ('2.5.4.1',              sanitize(request['group'])),
-                   '--signed-info', '%s %s' % ('2.5.4.3',              sanitize(request['homeurl'])),
-                   '--signed-info', '%s %s' % ('2.5.4.80',             sanitize(request['advisor'])),
-
+                   
                    '--sign-id', str(self.site_prefix),
                    '--cert-prefix', str(self.site_prefix),
                    '--request', '-'
