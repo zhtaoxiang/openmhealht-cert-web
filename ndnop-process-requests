@@ -59,7 +59,7 @@ class Signer(object):
           .append(str(int(time.mktime(time.gmtime())))) \
           .append(self.site_prefix.wireEncode())
         
-        # Zhehao: we do not verify operator's command interest signature for now.
+        # Zhehao: we do not ask for operator's command interest signature for now.
         '''
         p = subprocess.Popen(["ndnsec-operator-tool", "sign"],
                              stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -110,7 +110,7 @@ class Signer(object):
             #print identityCertificate.getName()
 
             print " >> Certificate request [%s] << " % certData.getName()[:-2].toUri()
-            print "    Full Name:    [%s]" % sanitize(req['fullname'])
+            print "    Full Name:    [%s]" % sanitize(req['full_name'])
             print "    Email:        [%s]" % sanitize(req['email'])
             
             try:
@@ -130,7 +130,9 @@ class Signer(object):
             try:
                 r = requests.post(http_request,
                                   data={
-                                      'data': cert
+                                      'data': cert,
+                                      'email': req['email'],
+                                      'full_name': req['full_name']
                                       })
                 if r.status_code != 200:
                     print "ERROR: failed to upload decision to the server"
@@ -156,7 +158,7 @@ class Signer(object):
         cmdline = ['ndnsec-certgen',
                    '--not-before', not_before,
                    '--not-after',  not_after,
-                   '--subject-name', sanitize(request['fullname']),
+                   '--subject-name', sanitize(request['full_name']),
 
                    '--signed-info', '%s %s' % ('1.2.840.113549.1.9.1', sanitize(request['email'])),
                    
@@ -164,8 +166,6 @@ class Signer(object):
                    '--cert-prefix', str(self.site_prefix),
                    '--request', '-'
                    ]
-        print(request['cert_request'])
-        print(cmdline)
 
         p = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         cert, err = p.communicate(request['cert_request'])

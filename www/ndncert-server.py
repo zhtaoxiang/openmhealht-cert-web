@@ -27,6 +27,7 @@ from flask.ext.mail import Mail, Message
 import smtplib
 from email.mime.text import MIMEText
 import smtplib
+
 import os
 import string
 import random
@@ -35,6 +36,9 @@ import base64
 import pyndn as ndn
 import json
 import urllib
+
+import subprocess
+import re
 
 # hashlib, md5
 import hashlib
@@ -77,16 +81,16 @@ def request_token():
         user_email = request.form['email']
         
         try:
-            # pre-validation
-            params = get_operator_and_namespace(user_email)
+            operator = get_operator()
         except Exception as e:
             print(e)
             abort(500)
         
         token = {
             'email': user_email,
-            'token': generate_token(),
+            'token': get_random_string(),
             'created_on': datetime.datetime.utcnow(), # to periodically remove unverified tokens
+            'assigned_namespace': ndn.Name(app.config['NAME_PREFIX']).append(get_random_string()).toUri()
             }
         mongo.db.tokens.insert(token)
 
@@ -113,10 +117,9 @@ def submit_request():
         if (token == None):
             abort(403)
 
-        # infer parameters from email
+        # if getting operator fails, don't process this get request
         try:
-            # pre-validation
-            params = get_operator_and_namespace(user_email)
+            operator = get_operator()
         except Exception as e:
             print(e)
             abort(500)
@@ -127,9 +130,9 @@ def submit_request():
         #if flag == 'mobileApp':
         #    return json.dumps({"organization": params['operator']['site_name']})
         #else:
-        
+                
         return render_template('request-form.html', URL=app.config['URL'],
-                               email=user_email, token=user_token, **params)
+                               email=user_email, token=user_token, assigned_namespace=token['assigned_namespace'])
                 
     else: # 'POST'
         # Email and token (to authorize the request==validate email)
@@ -142,68 +145,106 @@ def submit_request():
 
         # Now, do basic validation of correctness of user input, save request in the database
         # and notify the operator
-        user_fullname = request.form['full-name']
-        
-        # zhehao: we don't do optional fields any more
-        #optional parameters
-        #user_homeurl = request.form['homeurl'] if 'homeurl'   in request.form else ""
-        #user_group   = request.form['group']   if 'group'   in request.form else ""
-        #user_advisor = request.form['advisor'] if 'advisor' in request.form else ""
+        user_fullname = request.form['full_name']
 
-        # infer parameters from email
+        # if getting operator fails, don't process this post request
         try:
-            # pre-validation
-            params = get_operator_and_namespace(user_email)
+            operator = get_operator()
         except Exception as e:
             print(e)
             abort(500)
 
         if user_fullname == "":
             return json.dumps({"status": 400, "message": "User full name should not be empty"})
-            
         try:
-            user_cert_request = base64.b64decode(request.form['cert-request'])
+            user_cert_request = base64.b64decode(request.form['cert_request'])
             user_cert_data = ndn.Data()
             user_cert_data.wireDecode(ndn.Blob(buffer(user_cert_request)))
         except:
             return json.dumps({"status": 400, "message": "Malformed cert request"})
             
         # check if the user supplied correct name for the certificate request
-        if not params['assigned_namespace'].match(user_cert_data.getName()):
+        if not ndn.Name(token['assigned_namespace']).match(user_cert_data.getName()):
             return json.dumps({"status": 400, "message": "cert name does not match with assigned namespace"})
             
         cert_name = extract_cert_name(user_cert_data.getName()).toUri()
-        # remove any previous requests for the same certificate name
-        mongo.db.requests.remove({'cert_name': cert_name})
-
-        cert_request = {
-                'operator_id': str(params['operator']['_id']),
-                'fullname': user_fullname,
-                'organization': params['operator']['site_name'],
-                'email': user_email,
-                
-                'cert_name': cert_name,
-                'cert_request': base64.b64encode(user_cert_request),
-                'created_on': datetime.datetime.utcnow(), # to periodically remove unverified tokens
-            }
-        mongo.db.requests.insert(cert_request)
-
-        # OK. authorized, proceed to the next step
-        mongo.db.tokens.remove(token)
-
-        msg = Message("[NDN Certification] User certification request",
-                      sender = app.config['MAIL_FROM'],
-                      recipients = [params['operator']['email']],
-                      body = render_template('operator-notify-email.txt', URL=app.config['URL'],
-                                             operator_name=params['operator']['name'],
-                                             **cert_request),
-                      html = render_template('operator-notify-email.html', URL=app.config['URL'],
-                                             operator_name=params['operator']['name'],
-                                             **cert_request))
-        mail.send(msg)
-
-        return json.dumps({"status": 200})
         
+        if (not app.config['AUTO_APPROVE']):
+            # manual approval of request needed
+        
+            # remove any previous requests for the same certificate name
+            mongo.db.requests.remove({'cert_name': cert_name})
+
+            cert_request = {
+                    'operator_id': str(operator['_id']),
+                    'full_name': user_fullname,
+                    'organization': operator['site_name'],
+                    'email': user_email,
+                
+                    'cert_name': cert_name,
+                    'cert_request': base64.b64encode(user_cert_request),
+                    'created_on': datetime.datetime.utcnow(), # to periodically remove unverified tokens
+                }
+            mongo.db.requests.insert(cert_request)
+
+            # OK. authorized, proceed to the next step
+            mongo.db.tokens.remove(token)
+
+            msg = Message("[NDN Certification] User certification request",
+                          sender = app.config['MAIL_FROM'],
+                          recipients = [operator['email']],
+                          body = render_template('operator-notify-email.txt', URL=app.config['URL'],
+                                                 operator_name=operator['name'],
+                                                 **cert_request),
+                          html = render_template('operator-notify-email.html', URL=app.config['URL'],
+                                                 operator_name=operator['name'],
+                                                 **cert_request))
+            mail.send(msg)
+
+            return json.dumps({"status": 200})
+        else:
+            # automatically approve any cert request
+            try:
+                cert = issue_certificate(request.form)
+                ret = process_submitted_cert(cert, user_email, user_fullname)
+                ret_obj = json.loads(ret)
+                if (ret_obj['status'] != 200):
+                    return ret
+            except Exception as e:
+                print(e)
+                return json.dumps({"status": 500, "message": str(e)})
+            
+            return json.dumps({"status": 200})
+
+#############################################################################################
+# Certificate issue and publish methods, only used if auto approve is select
+#############################################################################################
+
+def issue_certificate(request):
+    today = datetime.datetime.utcnow()
+
+    not_before = (today - datetime.timedelta(days=1)  ).strftime('%Y%m%d%H%M%S')
+    not_after  = (today + datetime.timedelta(days=365)).strftime('%Y%m%d%H%M%S')
+
+    cmdline = ['ndnsec-certgen',
+               '--not-before', not_before,
+               '--not-after',  not_after,
+               '--subject-name', sanitize(request['full_name']),
+
+               '--signed-info', '%s %s' % ('1.2.840.113549.1.9.1', sanitize(request['email'])),
+               
+               '--sign-id', str(app.config['NAME_PREFIX']),
+               '--cert-prefix', str(app.config['NAME_PREFIX']),
+               '--request', '-'
+               ]
+
+    p = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    cert, err = p.communicate(request['cert_request'])
+    if p.returncode != 0:
+        raise RuntimeError("ndnsec-certgen error")
+    return cert.rstrip()
+
+
 #############################################################################################
 # Operator-facing components
 #############################################################################################
@@ -236,35 +277,40 @@ def get_candidates():
 
 @app.route('/cert/submit/', methods = ['POST'])
 def submit_certificate():
-    data = ndn.Data()
-    data.wireDecode(ndn.Blob(buffer(base64.b64decode(request.form['data']))))
+    if (not 'data' in request.form):
+        abort(400, 'Expected \'data\' (certificate data) in request form')
+    if (not 'email' in request.form):
+        abort(400, 'Expected \'email\' (requester email) in request form')
+    if (not 'full_name' in request.form):
+        abort(400, 'Expected \'full_name\' (requester full name) in request form')
+        
+    ret = process_submitted_cert(request.form['data'], request.form['email'], request.form['full_name'])
+    ret_obj = json.loads(ret)
+    if ret_obj['status'] != 200:
+        abort(ret_obj['status'])
+    else:
+        return ret
 
+def process_submitted_cert(cert_data, email, user_fullname):
+    data = ndn.Data()
+    data.wireDecode(ndn.Blob(buffer(base64.b64decode(cert_data))))
+    
     operator_prefix = extract_cert_name(data.getSignature().getKeyLocator().getKeyName())
 
     operator = mongo.db.operators.find_one({'site_prefix': operator_prefix.toUri()})
     if operator == None:
-        return make_response('operator not found [%s]' % operator_prefix, 403)
-        abort(403)
+        return json.dumps({"status": 403, "message": "operator not found [%s]" % operator_prefix})
 
     # @todo verify data packet
     # @todo verify timestamp
 
-    cert_name = extract_cert_name(data.getName())
-    cert_request = mongo.db.requests.find_one({'cert_name': cert_name.toUri()})
+    if (not app.config['AUTO_APPROVE']):
+        cert_name = extract_cert_name(data.getName())
+        cert_request = mongo.db.requests.find_one({'cert_name': cert_name.toUri()})
 
-    if cert_request == None:
-        print("No cert request entry")
-        abort(403)
-
-    # infer parameters from email
-    try:
-        # pre-validation
-        params = get_operator_and_namespace(cert_request['email'])
-    except Exception as e:
-        print(e)
-        abort(403)
-        return
-
+        if cert_request == None:
+            return json.dumps({"status": 403, "message": "No cert request entry"})
+    
     if len(data.getContent()) == 0:
         # (no deny reason for now)
         # eventually, need to check data.type: if NACK, then content contains reason for denial
@@ -272,20 +318,21 @@ def submit_certificate():
 
         msg = Message("[NDN Certification] Rejected certification",
                       sender = app.config['MAIL_FROM'],
-                      recipients = [cert_request['email']],
+                      recipients = [email],
                       body = render_template('cert-rejected-email.txt',
-                                             URL=app.config['URL'], **cert_request),
+                                             URL=app.config['URL'], fullname=user_fullname),
                       html = render_template('cert-rejected-email.html',
-                                             URL=app.config['URL'], **cert_request))
+                                             URL=app.config['URL'], fullname=user_fullname))
         mail.send(msg)
 
-        mongo.db.requests.remove(cert_request)
+        if (not app.config['AUTO_APPROVE']):
+            mongo.db.requests.remove(cert_request)
 
-        return "OK. Certificate has been denied"
+        return json.dumps({"status": 200, "message": "Certificate request denied"})
     else:
         cert = {
             'name': data.getName().toUri(),
-            'cert': request.form['data'],
+            'cert': cert_data,
             'operator': operator,
             'created_on': datetime.datetime.utcnow(), # to periodically remove unverified tokens
             }
@@ -293,31 +340,34 @@ def submit_certificate():
 
         msg = Message("[NDN Certification] NDN certificate issued",
                       sender = app.config['MAIL_FROM'],
-                      recipients = [cert_request['email']],
+                      recipients = [email],
                       body = render_template('cert-issued-email.txt',
                                              URL=app.config['URL'],
-                                             assigned_namespace=params['assigned_namespace'],
-                                             quoted_cert_name=urllib.quote(cert['name'], ''),
+                                             quoted_cert_name=urllib.quote(cert['name'], ),
                                              cert_id=str(data.getName()[-3]),
-                                             **cert_request),
+                                             fullname=user_fullname),
                       html = render_template('cert-issued-email.html',
                                              URL=app.config['URL'],
-                                             assigned_namespace=params['assigned_namespace'],
                                              quoted_cert_name=urllib.quote(cert['name'], ''),
                                              cert_id=str(data.getName()[-3]),
-                                             **cert_request))
+                                             fullname=user_fullname))
         mail.send(msg)
+        
+        if (not app.config['AUTO_APPROVE']):
+            mongo.db.requests.remove(cert_request)
 
-        mongo.db.requests.remove(cert_request)
-
-        return "OK. Certificate has been approved and notification sent to the requester"
+        return json.dumps({"status": 200, "message": "OK. Certificate has been approved and notification sent to the requester"})
 
 #############################################################################################
 # Helpers
 #############################################################################################
 
-def generate_token():
-    return ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(60)])
+def sanitize(value):
+    # Allow only a very limited set of characters as a value
+    return re.sub(r'[^a-zA-Z0-9.,\-!@#$%&*()\\/<>{}[]\|:`~ ]', r'', value)
+
+def get_random_string(length = 60):
+    return ''.join([random.choice(string.ascii_letters + string.digits) for n in xrange(length)])
 
 def ndnify(dnsName):
     ndnName = ndn.Name()
@@ -325,57 +375,18 @@ def ndnify(dnsName):
         ndnName = ndnName.append(str(component))
     return ndnName
 
-# zhehao: mhealth namespace claiming logic
+# zhehao: old md5 of user email as user's publishing namespace; not used for now
 def generate_user_name_from_email(email):
     m = hashlib.md5()
     m.update(email)
     return m.hexdigest()
-
-def get_operator_and_namespace(email):
-    operator = mongo.db.operators.find_one({'site_prefix': '/zhehao'})
+    
+def get_operator():
+    operator = mongo.db.operators.find_one({'site_prefix': app.config['NAME_PREFIX']})
     if (operator == None):
         raise Exception("No matching operators found")
     else:
-        user = generate_user_name_from_email(email)
-        assigned_namespace = ndn.Name('/zhehao')
-        assigned_namespace.append(str(user))
-    return {'operator':operator, 'user':user,
-            'assigned_namespace':assigned_namespace}
-
-# TODO: zhehao: replace this method with mHealth namespace claiming logic
-def get_operator_for_email(email):
-    # very basic pre-validation
-    user, domain = email.split('@', 2)
-    
-    # zhehao: for the local test, all requests go to the operator zhehao
-    #operator = mongo.db.operators.find_one({'site_emails': {'$in':[ domain ]}})
-    operator = mongo.db.operators.find_one({'site_prefix': '/zhehao'})
-    
-    if (operator == None):
-        operator = mongo.db.operators.find_one({'site_emails': {'$in':[ 'guest' ]}})
-
-        if (operator == None):
-            raise Exception("Unknown site for domain [%s]" % domain)
-
-        # Special handling for guests
-        ndn_domain = ndn.Name("/ndn/guest")
-        assigned_namespace = ndn.Name('/ndn/guest')
-        assigned_namespace.append(str(email))
-    else:
-        if domain == "operators.named-data.net":
-            ndn_domain = ndn.Name(str(user))
-            assigned_namespace = ndn.Name(str(user))
-        else:
-            ndn_domain = ndnify(domain)
-            # zhehao: for local test site, the root cert name begins with /zhehao, we use it to replace /ndn temporarily
-            assigned_namespace = ndn.Name('/zhehao')
-            assigned_namespace \
-                .append(ndn_domain) \
-                .append(str(user))
-
-    # return various things
-    return {'operator':operator, 'user':user, 'domain':domain,
-            'ndn_domain':ndn_domain, 'assigned_namespace':assigned_namespace}
+        return operator
 
 def extract_cert_name(name):
     # remove two (or 3 in case of rejection) last components and remove "KEY" keyword at any position
