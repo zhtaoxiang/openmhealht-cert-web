@@ -2,7 +2,7 @@ OpenMHealth Cert Website
 =======
 
 Utilities to facilitate public key certificate management for NDNFit/OpenMHealth applications. 
-Based on (ndncert)[https://github.com/named-data/ndncert], and (Jiewen's fork)[https://github.com/alanwaketan/ndncert].
+Based on [ndncert](https://github.com/named-data/ndncert), and [Jiewen's fork](https://github.com/alanwaketan/ndncert).
 
 If set
 
