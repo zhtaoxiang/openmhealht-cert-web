@@ -1,37 +1,108 @@
-ndncert
+OpenMHealth Cert Website
 =======
 
-Utilities to facilitate public key certificate management on NDN Testbed.
-The objective of the system is to simplify, yet keep secure, public key certification process.
+Utilities to facilitate public key certificate management for NDNFit/OpenMHealth applications.
 
-ndncert consists of two components:
+If set
 
-* `ndnop-process-requests` script to be run by NDN testbed site operators
-  after receiving email notification of a submitted certification request.
-* web server implementation in `www/` that receives certification requests from users,
-  notifies site operators of pending certifications, and notifies users after certificate
-  has been issued or denied.
+    AUTO_APPROVE = True
+
+in settings.py, all requests would be automatically approved; otherwise, ndnop-process-requests would be needed;
+
+Operator(s) should have /org/openmhealth as their default identity; and if set to AUTO_APPROVE, the host on which the site runs should have /org/openmhealth as its default identity; please check with
+
+    ndnsec-get-default
 
 ## Name conventions for NDN certificates
 
-ndncert directly ties the issued certificate names (= authorized namespace for the hierarchical
-trust model described in NDN-0009, "Deploying Key Management on NDN Testbed" by Bian et al.)
-to user email addresses.
+User's assigned namespace is randomly generated;
 
-In general, certificate namespace is based on institutional email addresses:
+User data namespace may look like
 
-    tom@cs.ucla.edu -> /ndn/edu/ucla/cs/tom
-    bob@wustl.edu -> /ndn/edu/wustl/bob
-    alice@eecs.umich.edu -> /ndn/edu/umich/eecs/alice
+    /org/openmhealth/keGKRFc81p2dkn0ebp9VgLdlJzSfJ0DKGvu1t0PGMCQZWnUcVmj2g9cAEVnH
 
-Non-institutional addresses and addresses of institutions that are not part of testbed
-assigned guest NDN namespace:
+Certificate name may look like
 
-    alex@gmail.com -> /ndn/guest/alex@gmail.com
+    /org/openmhealth/KEY/keGKRFc81p2dkn0ebp9VgLdlJzSfJ0DKGvu1t0PGMCQZWnUcVmj2g9cAEVnH/ksk-1438305472389/ID-CERT/%FD%00%00%01N%E1%AF%EB%5E
 
-Which operator is responsible to signing certificates for which domain names is configured
-in the web server database (`operators` collection).
+## Web/Mobile app interface
 
+<table>
+  <tbody>
+    <tr>
+      <th>URL</th>
+      <th>Method</th>
+      <th>Parameter</th>
+      <th>Action</th>
+    </tr>
+    <tr>
+      <td>/, /tokens/request</td>
+      <td>GET</td>
+      <td>None</td>
+      <td>Web user facing, render token request site<br>Return:<br>200</td>
+    </tr>
+    <tr>
+      <td>/, /tokens/request</td>
+      <td>POST</td>
+      <td>email</td>
+      <td>User facing, generate and store user token and namespace;<br>Return:<br>200: {“status”: 200}, success</td>
+    </tr>
+    <tr>
+      <td>/cert-requests/submit/</td>
+      <td>GET</td>
+      <td>email, token</td>
+      <td>Web user facing, render certificate submit page<br>Return:<br>200</td>
+    </tr>
+    <tr>
+      <td>/cert-requests/submit/</td>
+      <td>POST</td>
+      <td>email, token, full_name, cert_request</td>
+      <td>
+        User facing, store user info and cert request for given token;<br>
+        Return:<br>
+        200: {“status”: 200}, success<br>
+        403: no token/email record<br>
+        500: no operator, error during ndnsec-certgen<br>
+        400: user name empty, malformed cert request, cert name does not match assigned name<br>
+      </td>
+    </tr>
+    <tr>
+      <td>/cert-requests/get/</td>
+      <td>POST</td>
+      <td>commandInterest</td>
+      <td>
+        Operator facing, list cert requests for certain operator;<br>
+        Return:<br>
+        200, list of pending cert requests<br>
+        403, operator record not found<br>
+      </td>
+    </tr>
+    <tr>
+      <td>/cert/submit/</td>
+      <td>POST</td>
+      <td>data, email, full_name</td>
+      <td>
+        Operator facing, store signed certificate and notify user for downloading;<br>
+        Return:<br>
+        200, cert approved;<br>
+        400, mandatory field missing, to-add: submitted data verification failed;<br>
+        500, operator not found;<br>
+        403, no cert request entry;<br>
+      </td>
+    </tr>
+    <tr>
+      <td>/cert/get/</td>
+      <td>GET</td>
+      <td>name, isView(optional)</td>
+      <td>
+        User facing, get certificate using certificate name;<br>
+        Return:<br>
+        200, NDN cert data;<br>
+        404, no such certificate;<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ## Basic operations
 
