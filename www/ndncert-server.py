@@ -200,6 +200,7 @@ def submit_request():
         else:
             # automatically approve any cert request
             try:
+                mongo.db.tokens.remove(token)
                 cert = issue_certificate(request.form)
                 ret = process_submitted_cert(cert, user_email, user_fullname)
                 ret_obj = json.loads(ret)
