@@ -34,7 +34,6 @@ def get_certificate():
         return render_template('cert-show.html',
                                cert=cert, title=cert['name'])
 
-
 # Public interface
 @cert.route('/cert/list/', methods = ['GET'])
 def get_certificates():

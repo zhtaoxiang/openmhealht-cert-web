@@ -45,12 +45,10 @@ document.getElementById('submit-btn').onclick = function () {
             bodyElement.innerHTML = "<div class=\"instructions\"> \
               Please check your mailbox (" + email + ") with further instructions how to proceed. \
             </div>";
-          } else if (response.status == 500) {
+          } else {
             bodyElement.innerHTML += "<div class=\"instructions\"> \
               Error " + response.status.toString() + " : " + response.message + " \
             </div>";
-          } else {
-            bodyElement.innerHTML = "Unknown error.";
           }
         } 
         catch (e) {

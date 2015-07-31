@@ -115,22 +115,17 @@ def submit_request():
         
         token = mongo.db.tokens.find_one({'email':user_email, 'token':user_token})
         if (token == None):
-            abort(403)
+            abort(403, "No such token for this email address")
 
         # if getting operator fails, don't process this get request
         try:
             operator = get_operator()
         except Exception as e:
             print(e)
-            abort(500)
+            abort(500, str(e))
 
         # don't delete token for now, just give user a form to input stuff
-        
-        # Zhehao: I don't think this GET request should have a mobile interface
-        #if flag == 'mobileApp':
-        #    return json.dumps({"organization": params['operator']['site_name']})
-        #else:
-                
+               
         return render_template('request-form.html', URL=app.config['URL'],
                                email=user_email, token=user_token, assigned_namespace=token['assigned_namespace'])
                 
@@ -138,34 +133,34 @@ def submit_request():
         # Email and token (to authorize the request==validate email)
         user_email = request.form['email']
         user_token = request.form['token']
-
+        user_fullname = request.form['full_name']
+        
         token = mongo.db.tokens.find_one({'email':user_email, 'token':user_token})
         if (token == None):
-            abort(403)
+            abort(403, "No such token for this email address")
 
         # Now, do basic validation of correctness of user input, save request in the database
         # and notify the operator
-        user_fullname = request.form['full_name']
 
         # if getting operator fails, don't process this post request
         try:
             operator = get_operator()
         except Exception as e:
             print(e)
-            abort(500)
+            abort(500, str(e))
 
         if user_fullname == "":
-            return json.dumps({"status": 400, "message": "User full name should not be empty"})
+            abort(400, "User full name should not be empty")
         try:
             user_cert_request = base64.b64decode(request.form['cert_request'])
             user_cert_data = ndn.Data()
             user_cert_data.wireDecode(ndn.Blob(buffer(user_cert_request)))
         except:
-            return json.dumps({"status": 400, "message": "Malformed cert request"})
+            abort(400, "Malformed cert request")
             
         # check if the user supplied correct name for the certificate request
         if not ndn.Name(token['assigned_namespace']).match(user_cert_data.getName()):
-            return json.dumps({"status": 400, "message": "cert name does not match with assigned namespace"})
+            abort(400, "cert name does not match with assigned namespace")
             
         cert_name = extract_cert_name(user_cert_data.getName()).toUri()
         
@@ -209,12 +204,13 @@ def submit_request():
                 ret = process_submitted_cert(cert, user_email, user_fullname)
                 ret_obj = json.loads(ret)
                 if (ret_obj['status'] != 200):
-                    return ret
+                    abort(ret_obj['status'], ret_obj['message'])
+                else:
+                    return json.dumps({"status": 200})
             except Exception as e:
                 print(e)
-                return json.dumps({"status": 500, "message": str(e)})
+                abort(500, str(e))
             
-            return json.dumps({"status": 200})
 
 #############################################################################################
 # Certificate issue and publish methods, only used if auto approve is select
@@ -287,7 +283,7 @@ def submit_certificate():
     ret = process_submitted_cert(request.form['data'], request.form['email'], request.form['full_name'])
     ret_obj = json.loads(ret)
     if ret_obj['status'] != 200:
-        abort(ret_obj['status'])
+        abort(ret_obj['status'], ret_obj['message'])
     else:
         return ret
 
@@ -295,13 +291,13 @@ def process_submitted_cert(cert_data, email, user_fullname):
     data = ndn.Data()
     data.wireDecode(ndn.Blob(buffer(base64.b64decode(cert_data))))
     
+    # @todo verify data packet
+    # Additional operator verification needed? Operator key should be verified
     operator_prefix = extract_cert_name(data.getSignature().getKeyLocator().getKeyName())
-
     operator = mongo.db.operators.find_one({'site_prefix': operator_prefix.toUri()})
     if operator == None:
-        return json.dumps({"status": 403, "message": "operator not found [%s]" % operator_prefix})
+        return json.dumps({"status": 500, "message": "operator not found [%s]" % operator_prefix})
 
-    # @todo verify data packet
     # @todo verify timestamp
 
     if (not app.config['AUTO_APPROVE']):
@@ -330,11 +326,12 @@ def process_submitted_cert(cert_data, email, user_fullname):
 
         return json.dumps({"status": 200, "message": "Certificate request denied"})
     else:
+        # may want to store assigned_namespace here as well
         cert = {
             'name': data.getName().toUri(),
             'cert': cert_data,
             'operator': operator,
-            'created_on': datetime.datetime.utcnow(), # to periodically remove unverified tokens
+            'created_on': datetime.datetime.utcnow(),
             }
         mongo.db.certs.insert(cert)
 
