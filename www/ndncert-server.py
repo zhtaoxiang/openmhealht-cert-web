@@ -131,12 +131,26 @@ def submit_request():
                 
     else: # 'POST'
         # Email and token (to authorize the request==validate email)
-        user_email = request.form['email']
-        user_token = request.form['token']
-        user_fullname = request.form['full_name']
-        
+        if ('email' in request.form):
+            user_email = request.form['email']
+        else:
+            print('Expected email in request')
+            abort(400, 'Expected email in request')
+        if ('token' in request.form):
+            user_token = request.form['token']
+        else:
+            print('Expected token in request')
+            abort(400, 'Expected token in request')
+
+        if ('full_name' in request.form):
+            user_fullname = request.form['full_name']
+        else:
+            print('Expected full_name in request')
+            abort(400, 'Expected full_name in request')
+
         token = mongo.db.tokens.find_one({'email':user_email, 'token':user_token})
         if (token == None):
+            print("No such token for this email address")
             abort(403, "No such token for this email address")
 
         # Now, do basic validation of correctness of user input, save request in the database
@@ -150,16 +164,19 @@ def submit_request():
             abort(500, str(e))
 
         if user_fullname == "":
+            print("User full name should not be empty")
             abort(400, "User full name should not be empty")
         try:
             user_cert_request = base64.b64decode(request.form['cert_request'])
             user_cert_data = ndn.Data()
             user_cert_data.wireDecode(ndn.Blob(buffer(user_cert_request)))
         except:
+            print("Malformed cert request")
             abort(400, "Malformed cert request")
             
         # check if the user supplied correct name for the certificate request
         if not ndn.Name(token['assigned_namespace']).match(user_cert_data.getName()):
+            print("cert name does not match with assigned namespace")
             abort(400, "cert name does not match with assigned namespace")
             
         cert_name = extract_cert_name(user_cert_data.getName()).toUri()
@@ -276,15 +293,19 @@ def get_candidates():
 @app.route('/cert/submit/', methods = ['POST'])
 def submit_certificate():
     if (not 'data' in request.form):
+        print('Expected \'data\' (certificate data) in request form')
         abort(400, 'Expected \'data\' (certificate data) in request form')
     if (not 'email' in request.form):
+        print('Expected \'email\' (requester email) in request form')
         abort(400, 'Expected \'email\' (requester email) in request form')
     if (not 'full_name' in request.form):
+        print('Expected \'full_name\' (requester full name) in request form')
         abort(400, 'Expected \'full_name\' (requester full name) in request form')
         
     ret = process_submitted_cert(request.form['data'], request.form['email'], request.form['full_name'])
     ret_obj = json.loads(ret)
     if ret_obj['status'] != 200:
+        print(str(ret_obj['status']) + ' ' + ret_obj['message'])
         abort(ret_obj['status'], ret_obj['message'])
     else:
         return ret
@@ -399,4 +420,4 @@ def extract_cert_name(name):
     return newname
 
 if __name__ == '__main__':
-    app.run(debug = True, host='0.0.0.0')
+    app.run(debug = True, host='0.0.0.0', port=5001)
