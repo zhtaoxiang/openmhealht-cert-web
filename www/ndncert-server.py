@@ -223,6 +223,7 @@ def issue_certificate(request):
     not_before = (today - datetime.timedelta(days=1)  ).strftime('%Y%m%d%H%M%S')
     not_after  = (today + datetime.timedelta(days=365)).strftime('%Y%m%d%H%M%S')
 
+    # TODO: read the randomized user namespace and modify the --cert-prefix field
     cmdline = ['ndnsec-certgen',
                '--not-before', not_before,
                '--not-after',  not_after,
