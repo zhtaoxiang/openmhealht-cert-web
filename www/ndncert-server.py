@@ -100,7 +100,7 @@ def request_token():
                       body = render_template('token-email.txt', URL=app.config['URL'], **token),
                       html = render_template('token-email.html', URL=app.config['URL'], **token))
         mail.send(msg)
-        return json.dumps({"status": 200})
+        return json.dumps({"status": 200, "assigned_namespace": token['assigned_namespace']})
         
 @app.route('/help', methods = ['GET'])
 def show_help():
