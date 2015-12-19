@@ -6,7 +6,7 @@ URL = "http://memoria.ndn.ucla.edu:5001"
 #################
 # SMTP settings #
 #################
-MAIL_FROM = "NDN Testbed Certificate Robot <alanwake.tan@gmail.com>"
+MAIL_FROM = "NDN Open mHealth Certificate Robot <testname.zhehao@gmail.com>"
 MAIL_SERVER = "smtp.gmail.com"
 
 MAIL_PORT = 465
