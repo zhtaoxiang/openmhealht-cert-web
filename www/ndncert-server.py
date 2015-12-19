@@ -94,7 +94,7 @@ def request_token():
             }
         mongo.db.tokens.insert(token)
 
-        msg = Message("[NDN Certification] Request confirmation",
+        msg = Message("[NDN Open mHealth Certification] Request confirmation",
                       sender = app.config['MAIL_FROM'],
                       recipients = [user_email],
                       body = render_template('token-email.txt', URL=app.config['URL'], **token),
@@ -185,7 +185,7 @@ def submit_request():
             # OK. authorized, proceed to the next step
             mongo.db.tokens.remove(token)
 
-            msg = Message("[NDN Certification] User certification request",
+            msg = Message("[NDN Open mHealth Certification] User certification request",
                           sender = app.config['MAIL_FROM'],
                           recipients = [operator['email']],
                           body = render_template('operator-notify-email.txt', URL=app.config['URL'],
@@ -314,7 +314,7 @@ def process_submitted_cert(cert_data, email, user_fullname):
         # eventually, need to check data.type: if NACK, then content contains reason for denial
         #                                      if KEY, then content is the certificate
 
-        msg = Message("[NDN Certification] Rejected certification",
+        msg = Message("[NDN Open mHealth Certification] Rejected certification",
                       sender = app.config['MAIL_FROM'],
                       recipients = [email],
                       body = render_template('cert-rejected-email.txt',
@@ -337,7 +337,7 @@ def process_submitted_cert(cert_data, email, user_fullname):
             }
         mongo.db.certs.insert(cert)
 
-        msg = Message("[NDN Certification] NDN certificate issued",
+        msg = Message("[NDN Open mHealth Certification] certificate issued",
                       sender = app.config['MAIL_FROM'],
                       recipients = [email],
                       body = render_template('cert-issued-email.txt',
