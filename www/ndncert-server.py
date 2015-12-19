@@ -337,7 +337,7 @@ def process_submitted_cert(cert_data, email, user_fullname):
             }
         mongo.db.certs.insert(cert)
 
-        msg = Message("[NDN Open mHealth Certification] certificate issued",
+        msg = Message("[NDN Open mHealth Certification] Certificate issued",
                       sender = app.config['MAIL_FROM'],
                       recipients = [email],
                       body = render_template('cert-issued-email.txt',
