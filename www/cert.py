@@ -17,7 +17,8 @@ def get_certificate():
     name = request.args.get('name')
     isView = request.args.get('view')
 
-    print name
+    #print name
+    #print str(name)
 
     ndn_name = ndn.Name(str(name))
 

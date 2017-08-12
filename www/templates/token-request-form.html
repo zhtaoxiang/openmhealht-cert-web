@@ -40,6 +40,7 @@ document.getElementById('submit-btn').onclick = function () {
     req.onreadystatechange = function () {
       if (req.readyState == 4) {
         try {
+          console.log(req.responseText);
           var response = JSON.parse(req.responseText);
           if (response.status == 200) {
             bodyElement.innerHTML = "<div class=\"instructions\"> \

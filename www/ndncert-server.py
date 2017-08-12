@@ -19,16 +19,24 @@
 # pip install Flask, Flask-PyMongo
 
 #html/rest
-from flask import Flask, jsonify, abort, make_response, request, render_template
+from flask import Flask, jsonify, abort, make_response, request, render_template, current_app
 from flask.ext.pymongo import PyMongo
 from flask.ext.mail import Mail, Message
-
+#pyndn
+from pyndn import Name, Data, Face, Interest
+from pyndn.security import KeyChain
+from pyndn.security.certificate import IdentityCertificate
+from pyndn.security.identity import IdentityManager
+from pyndn.security.identity import BasicIdentityStorage, FilePrivateKeyStorage, MemoryIdentityStorage, MemoryPrivateKeyStorage
+from pyndn.security.policy import NoVerifyPolicyManager
 # mail
 import smtplib
 from email.mime.text import MIMEText
 import smtplib
 
+from threading import Thread
 import os
+import time
 import string
 import random
 import datetime
@@ -90,7 +98,7 @@ def request_token():
             'email': user_email,
             'token': get_random_string(),
             'created_on': datetime.datetime.utcnow(), # to periodically remove unverified tokens
-            'assigned_namespace': ndn.Name(app.config['NAME_PREFIX']).append(get_random_string()).toUri()
+            'assigned_namespace': ndn.Name(app.config['NAME_PREFIX']).append(get_random_string(10)).toUri()
             }
         mongo.db.tokens.insert(token)
 
@@ -109,6 +117,7 @@ def show_help():
 @app.route('/cert-requests/submit/', methods = ['GET', 'POST'])
 def submit_request():
     if request.method == 'GET':
+        # print 'GET'
         # Email and token (to authorize the request==validate email)
         user_email = request.args.get('email')
         user_token = request.args.get('token')
@@ -130,6 +139,7 @@ def submit_request():
                                email=user_email, token=user_token, assigned_namespace=token['assigned_namespace'])
                 
     else: # 'POST'
+        # print "POST"
         # Email and token (to authorize the request==validate email)
         if ('email' in request.form):
             user_email = request.form['email']
@@ -216,6 +226,7 @@ def submit_request():
             return json.dumps({"status": 200})
         else:
             # automatically approve any cert request
+            # print request
             try:
                 mongo.db.tokens.remove(token)
                 cert = issue_certificate(request.form)
@@ -227,7 +238,7 @@ def submit_request():
                     return json.dumps({"status": 200})
             except Exception as e:
                 print(e)
-                abort(500, str(e))
+                abort(500)
             
 
 #############################################################################################
@@ -254,7 +265,7 @@ def issue_certificate(request):
                ]
 
     p = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    cert, err = p.communicate(request['cert_request'])
+    cert, err = p.communicate(request['cert_request'].replace("\r", ""))
     if p.returncode != 0:
         raise RuntimeError("ndnsec-certgen error")
     return cert.rstrip()
@@ -419,5 +430,52 @@ def extract_cert_name(name):
             newname.append(component)
     return newname
 
+class CertServer(object):
+    def __init__(self, face):
+        # Set up face
+        self.face = face
+        identityStorage = BasicIdentityStorage()
+        privateKeyStorage = FilePrivateKeyStorage()
+        self.keyChain = KeyChain(IdentityManager(identityStorage, privateKeyStorage),NoVerifyPolicyManager())
+        self.face.setCommandSigningInfo(self.keyChain, Name("/org/openmhealth/KEY/ksk-1490231565751/ID-CERT/%FD%00%00%01Z%F8%B9%1Et"))
+        self.face.registerPrefix(Name("/org/openmhealth"), self.onInterest, self.onRegisterFailed)
+
+    def onInterest(self, prefix, interest, face, interestFilterId, filter):
+        #print interest.getName()
+        interestName = interest.getName()
+        if interestName.equals(Name("/org/openmhealth/KEY/ksk-1490231565751/ID-CERT/%FD%00%00%01Z%F8%B9%1Et")):
+            face.putData(self.keyChain.getCertificate(Name("/org/openmhealth/KEY/ksk-1490231565751/ID-CERT/%FD%00%00%01Z%F8%B9%1Et")))
+            return
+        with app.app_context():
+            certCursor = current_app.mongo.db.certs.find({})
+            for record in certCursor:
+                print record['name']
+                if interestName.isPrefixOf(Name(record['name'])):
+                    data = Data()
+                    data.wireDecode(ndn.Blob(buffer(base64.b64decode(record['cert']))))
+                    face.putData(data)
+            #cert = current_app.mongo.db.certs.find_one({'name': interestName})
+            #if cert != None:
+            #    data = Data()
+            #    data.wireDecode(ndn.Blob(buffer(base64.b64decode(cert['cert']))))
+            #    face.putData(data)
+
+    def onRegisterFailed(self, prefix):
+        print "Prefix registration failed: " + prefix.toUri()
+        return
+
+def cert_server_thread():
+    face = Face()
+    CertServer(face)
+
+    while True:
+        face.processEvents()
+        # We need to sleep for a few milliseconds so we don't use 100% of the CPU.
+        time.sleep(0.01)
+
 if __name__ == '__main__':
-    app.run(debug = True, host='0.0.0.0', port=5001)
+    mythread = Thread(target = cert_server_thread, args=[])
+    mythread.start()
+    isThreadStarted = True
+    app.run(debug = True, host='0.0.0.0', port=5001, use_reloader=False)
+    mythread.join()
