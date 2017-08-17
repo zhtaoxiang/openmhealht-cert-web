@@ -443,7 +443,7 @@ class CertServer(object):
     def onInterest(self, prefix, interest, face, interestFilterId, filter):
         #print interest.getName()
         interestName = interest.getName()
-        if interestName.equals(Name("/org/openmhealth/KEY/ksk-1490231565751/ID-CERT/%FD%00%00%01Z%F8%B9%1Et")):
+        if interestName.isPrefixOf(Name("/org/openmhealth/KEY/ksk-1490231565751/ID-CERT/%FD%00%00%01Z%F8%B9%1Et")):
             face.putData(self.keyChain.getCertificate(Name("/org/openmhealth/KEY/ksk-1490231565751/ID-CERT/%FD%00%00%01Z%F8%B9%1Et")))
             return
         with app.app_context():
